@@ -1,29 +1,26 @@
 import * as fs from "fs";
 import * as path from "path";
 
-// Lazy load pdf-parse to handle ESM compatibility
-let pdfParse: any = null;
-
-async function getPdfParse() {
-  if (!pdfParse) {
-    // Use dynamic import for ESM compatibility
-    const module = await import("pdf-parse");
-    // pdf-parse exports the parser function as default or named export
-    pdfParse = (module as any).default || (module as any);
-  }
-  return pdfParse;
-}
-
 /**
  * Extract text from PDF file
  */
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   try {
     const dataBuffer = fs.readFileSync(filePath);
-    const pdfParseFunc = await getPdfParse();
-    // pdf-parse is a function that takes a buffer and returns a promise
-    const data = await pdfParseFunc(dataBuffer);
-    return data.text || "";
+    // Import PDFParse class from pdf-parse
+    const { PDFParse } = await import("pdf-parse");
+    
+    // Convert buffer to base64 data URL
+    const base64Data = dataBuffer.toString("base64");
+    const dataUrl = `data:application/pdf;base64,${base64Data}`;
+    
+    // Create parser instance with data URL
+    const parser = new PDFParse({ url: dataUrl });
+    
+    // Get text from PDF
+    const result = await parser.getText();
+    
+    return result.text || "";
   } catch (error) {
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
