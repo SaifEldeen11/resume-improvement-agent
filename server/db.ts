@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, resumes, resumeImprovements, InsertResume, InsertResumeImprovement } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,39 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function createResume(data: InsertResume) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(resumes).values(data);
+  return result;
+}
+
+export async function getUserResumes(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select().from(resumes).where(eq(resumes.userId, userId));
+}
+
+export async function getResumeById(resumeId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select().from(resumes).where(eq(resumes.id, resumeId) && eq(resumes.userId, userId)).limit(1);
+}
+
+export async function createResumeImprovement(data: InsertResumeImprovement) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(resumeImprovements).values(data);
+}
+
+export async function getResumeImprovements(userId: number, limit = 10) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select().from(resumeImprovements).where(eq(resumeImprovements.userId, userId)).orderBy(desc(resumeImprovements.createdAt)).limit(limit);
+}
+
+export async function updateResumeImprovement(id: number, updates: Partial<InsertResumeImprovement>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(resumeImprovements).set(updates).where(eq(resumeImprovements.id, id));
+}

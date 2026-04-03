@@ -25,4 +25,42 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Resumes table stores uploaded resume files and parsed content
+ */
+export const resumes = mysqlTable("resumes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  originalContent: text("originalContent").notNull(),
+  fileKey: varchar("fileKey", { length: 255 }).notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  fileType: varchar("fileType", { length: 50 }).notNull(), // 'pdf' or 'image'
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Resume = typeof resumes.$inferSelect;
+export type InsertResume = typeof resumes.$inferInsert;
+
+/**
+ * Resume improvements table stores improvement history and results
+ */
+export const resumeImprovements = mysqlTable("resumeImprovements", {
+  id: int("id").autoincrement().primaryKey(),
+  resumeId: int("resumeId").notNull(),
+  userId: int("userId").notNull(),
+  instructions: text("instructions").notNull(),
+  originalContent: text("originalContent").notNull(),
+  improvedContent: text("improvedContent").notNull(),
+  changeSummary: text("changeSummary").notNull(), // JSON array of changes
+  pdfFileKey: varchar("pdfFileKey", { length: 255 }),
+  pdfUrl: text("pdfUrl"),
+  status: mysqlEnum("status", ["pending", "completed", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ResumeImprovement = typeof resumeImprovements.$inferSelect;
+export type InsertResumeImprovement = typeof resumeImprovements.$inferInsert;
