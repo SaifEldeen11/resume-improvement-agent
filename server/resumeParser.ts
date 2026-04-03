@@ -1,8 +1,19 @@
 import * as fs from "fs";
 import * as path from "path";
-// @ts-ignore - pdf-parse has complex exports
-import pdfParse from "pdf-parse";
 import Tesseract from "tesseract.js";
+
+// Lazy load pdf-parse to handle ESM compatibility
+let pdfParse: any = null;
+
+async function getPdfParse() {
+  if (!pdfParse) {
+    // Use dynamic import for ESM compatibility
+    const module = await import("pdf-parse");
+    // pdf-parse exports the parser function as default or named export
+    pdfParse = (module as any).default || (module as any);
+  }
+  return pdfParse;
+}
 
 /**
  * Extract text from PDF file
@@ -10,8 +21,9 @@ import Tesseract from "tesseract.js";
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   try {
     const dataBuffer = fs.readFileSync(filePath);
+    const pdfParseFunc = await getPdfParse();
     // pdf-parse is a function that takes a buffer and returns a promise
-    const data = await (pdfParse as any)(dataBuffer);
+    const data = await pdfParseFunc(dataBuffer);
     return data.text;
   } catch (error) {
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
