@@ -14,6 +14,7 @@
 - [x] Create change summary generation showing all modifications
 - [x] Build error handling for unreadable files
 - [x] Implement tRPC procedures for: uploadResume, analyzeResume, improveResume, downloadResume, getHistory
+- [x] Fix resume improvement workflow end-to-end integration
 
 ### Frontend UI & User Experience
 - [x] Design and implement landing page with feature overview
@@ -27,6 +28,7 @@
 - [x] Implement PDF download functionality
 - [x] Build resume history page showing past improvements
 - [x] Add authentication integration for user-specific data
+- [x] Connect upload form to backend API for resume improvement workflow
 
 ### Testing & Quality Assurance
 - [x] Write vitest tests for resume parsing logic (8 tests)

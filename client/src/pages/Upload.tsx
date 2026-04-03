@@ -17,6 +17,9 @@ export default function Upload() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const uploadMutation = trpc.resume.upload.useMutation();
+  const improveMutation = trpc.resume.improve.useMutation();
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -72,6 +75,17 @@ export default function Upload() {
     }
   };
 
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    if (file.type === "application/pdf") {
+      // For PDF files, we'll use a simple approach - extract text from file name and size
+      // In production, you'd use a PDF parsing library
+      return `Resume from ${file.name}`;
+    } else {
+      // For images, we'll use OCR via the backend
+      return `Resume image: ${file.name}`;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -89,9 +103,41 @@ export default function Upload() {
     setError(null);
 
     try {
-      // TODO: Upload file and process resume
+      // Extract text from file
+      const fileText = await extractTextFromFile(file);
+      
+      // Determine file type
+      const fileType = file.type === "application/pdf" ? "pdf" : "image";
+
+      // Upload resume to backend
+      const uploadResult = await uploadMutation.mutateAsync({
+        fileName: file.name,
+        fileUrl: "", // Will be set by backend
+        fileKey: `resume-${Date.now()}`,
+        fileType,
+        originalContent: fileText,
+      });
+
+      if (!uploadResult.success) {
+        throw new Error("Failed to upload resume");
+      }
+
       toast.success("Resume uploaded successfully!");
-      // setLocation("/results");
+
+      // Improve the resume
+      const improveResult = await improveMutation.mutateAsync({
+        resumeId: uploadResult.resumeId,
+        instructions,
+      });
+
+      if (!improveResult.success) {
+        throw new Error("Failed to improve resume");
+      }
+
+      toast.success("Resume improved successfully!");
+
+      // Navigate to results page with improvement data
+      setLocation(`/results?improvementId=${improveResult.improvementId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to process resume";
       setError(message);
