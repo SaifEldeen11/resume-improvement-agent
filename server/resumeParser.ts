@@ -1,65 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
-import Tesseract from "tesseract.js";
-
-// Lazy load pdf-parse to handle ESM compatibility
-let pdfParse: any = null;
-
-async function getPdfParse() {
-  if (!pdfParse) {
-    // Use dynamic import for ESM compatibility
-    const module = await import("pdf-parse");
-    // pdf-parse exports the parser function as default or named export
-    pdfParse = (module as any).default || (module as any);
-  }
-  return pdfParse;
-}
-
-/**
- * Extract text from PDF file
- */
-export async function extractTextFromPDF(filePath: string): Promise<string> {
-  try {
-    const dataBuffer = fs.readFileSync(filePath);
-    const pdfParseFunc = await getPdfParse();
-    // pdf-parse is a function that takes a buffer and returns a promise
-    const data = await pdfParseFunc(dataBuffer);
-    return data.text;
-  } catch (error) {
-    throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
-  }
-}
-
-/**
- * Extract text from image file using OCR
- */
-export async function extractTextFromImage(filePath: string): Promise<string> {
-  try {
-    const result = await Tesseract.recognize(filePath, "eng", {
-      logger: (m) => {
-        // Log progress silently
-        if (m.status === "recognizing text") {
-          console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
-        }
-      },
-    });
-    return result.data.text;
-  } catch (error) {
-    throw new Error(`Failed to extract text from image: ${error instanceof Error ? error.message : "Unknown error"}`);
-  }
-}
-
-/**
- * Extract text from resume file (PDF or image)
- */
-export async function extractResumeText(filePath: string, fileType: "pdf" | "image"): Promise<string> {
-  if (fileType === "pdf") {
-    return extractTextFromPDF(filePath);
-  } else {
-    return extractTextFromImage(filePath);
-  }
-}
-
 /**
  * Parse resume content into structured sections
  */
@@ -73,6 +11,9 @@ export interface ParsedResume {
   other: string;
 }
 
+/**
+ * Parse resume content into structured sections
+ */
 export function parseResumeContent(text: string): ParsedResume {
   const sections: ParsedResume = {
     contact: "",

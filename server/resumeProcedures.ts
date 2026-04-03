@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { createResume, getUserResumes, createResumeImprovement, getResumeImprovements, updateResumeImprovement } from "./db";
-import { extractResumeText, parseResumeContent, validateResumeContent } from "./resumeParser";
+import { parseResumeContent, validateResumeContent } from "./resumeParser";
 import { improveResume, optimizeForATS, Change } from "./resumeImprover";
 import { generateResumePDF, generateChangeSummaryPDF } from "./pdfGenerator";
 import { storagePut, storageGet } from "./storage";
