@@ -1,21 +1,27 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 
 /**
  * Extract text from PDF file
  */
 export async function extractTextFromPDF(filePath: string): Promise<string> {
+  let tempFilePath: string | null = null;
+  
   try {
-    const dataBuffer = fs.readFileSync(filePath);
+    // Read the file
+    const fileContent = fs.readFileSync(filePath);
+    
+    // Create a temporary file with .pdf extension
+    tempFilePath = path.join(os.tmpdir(), `resume-${Date.now()}.pdf`);
+    fs.writeFileSync(tempFilePath, fileContent);
+    
     // Import PDFParse class from pdf-parse
     const { PDFParse } = await import("pdf-parse");
     
-    // Convert buffer to base64 data URL
-    const base64Data = dataBuffer.toString("base64");
-    const dataUrl = `data:application/pdf;base64,${base64Data}`;
-    
-    // Create parser instance with data URL
-    const parser = new PDFParse({ url: dataUrl });
+    // Create parser instance with file:// URL
+    const fileUrl = `file://${tempFilePath}`;
+    const parser = new PDFParse({ url: fileUrl });
     
     // Get text from PDF
     const result = await parser.getText();
@@ -23,6 +29,15 @@ export async function extractTextFromPDF(filePath: string): Promise<string> {
     return result.text || "";
   } catch (error) {
     throw new Error(`Failed to extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+  } finally {
+    // Clean up temp file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
   }
 }
 
