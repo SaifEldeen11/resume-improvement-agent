@@ -19,6 +19,7 @@ export default function Upload() {
 
   const uploadMutation = trpc.resume.upload.useMutation();
   const improveMutation = trpc.resume.improve.useMutation();
+  const extractTextMutation = trpc.resume.extractText.useMutation();
 
   if (authLoading) {
     return (
@@ -75,15 +76,18 @@ export default function Upload() {
     }
   };
 
-  const extractTextFromFile = async (file: File): Promise<string> => {
-    if (file.type === "application/pdf") {
-      // For PDF files, we'll use a simple approach - extract text from file name and size
-      // In production, you'd use a PDF parsing library
-      return `Resume from ${file.name}`;
-    } else {
-      // For images, we'll use OCR via the backend
-      return `Resume image: ${file.name}`;
-    }
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Extract base64 part (remove data:application/pdf;base64, prefix)
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,11 +107,26 @@ export default function Upload() {
     setError(null);
 
     try {
-      // Extract text from file
-      const fileText = await extractTextFromFile(file);
+      // Convert file to base64
+      const fileBase64 = await fileToBase64(file);
       
       // Determine file type
       const fileType = file.type === "application/pdf" ? "pdf" : "image";
+
+      // Extract text from file on backend
+      toast.loading("Extracting text from resume...");
+      const extractResult = await extractTextMutation.mutateAsync({
+        fileData: fileBase64,
+        fileName: file.name,
+        fileType,
+      });
+
+      if (!extractResult.success) {
+        throw new Error("Failed to extract text from resume");
+      }
+
+      toast.dismiss();
+      toast.success("Text extracted successfully!");
 
       // Upload resume to backend
       const uploadResult = await uploadMutation.mutateAsync({
@@ -115,7 +134,7 @@ export default function Upload() {
         fileUrl: "", // Will be set by backend
         fileKey: `resume-${Date.now()}`,
         fileType,
-        originalContent: fileText,
+        originalContent: extractResult.content,
       });
 
       if (!uploadResult.success) {
@@ -125,6 +144,7 @@ export default function Upload() {
       toast.success("Resume uploaded successfully!");
 
       // Improve the resume
+      toast.loading("Improving your resume...");
       const improveResult = await improveMutation.mutateAsync({
         resumeId: uploadResult.resumeId,
         instructions,
@@ -134,11 +154,13 @@ export default function Upload() {
         throw new Error("Failed to improve resume");
       }
 
+      toast.dismiss();
       toast.success("Resume improved successfully!");
 
       // Navigate to results page with improvement data
       setLocation(`/results?improvementId=${improveResult.improvementId}`);
     } catch (err) {
+      toast.dismiss();
       const message = err instanceof Error ? err.message : "Failed to process resume";
       setError(message);
       toast.error(message);

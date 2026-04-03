@@ -15,6 +15,9 @@
 - [x] Build error handling for unreadable files
 - [x] Implement tRPC procedures for: uploadResume, analyzeResume, improveResume, downloadResume, getHistory
 - [x] Fix resume improvement workflow end-to-end integration
+- [x] Implement real PDF text extraction from uploaded files
+- [x] Implement real image text extraction (OCR) from uploaded files
+- [x] Update frontend to send file data to backend for extraction
 
 ### Frontend UI & User Experience
 - [x] Design and implement landing page with feature overview

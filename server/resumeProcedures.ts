@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { createResume, getUserResumes, createResumeImprovement, getResumeImprovements, updateResumeImprovement } from "./db";
-import { parseResumeContent, validateResumeContent } from "./resumeParser";
+import { parseResumeContent, validateResumeContent, extractResumeText } from "./resumeParser";
 import { improveResume, optimizeForATS, Change } from "./resumeImprover";
 import { generateResumePDF, generateChangeSummaryPDF } from "./pdfGenerator";
 import { storagePut, storageGet } from "./storage";
@@ -10,6 +10,54 @@ import * as path from "path";
 import * as os from "os";
 
 export const resumeRouter = router({
+  /**
+   * Extract text from uploaded resume file
+   */
+  extractText: protectedProcedure
+    .input(
+      z.object({
+        fileData: z.string(), // Base64 encoded file data
+        fileName: z.string(),
+        fileType: z.enum(["pdf", "image"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Create temporary file from base64 data
+        const tempDir = os.tmpdir();
+        const tempFilePath = path.join(tempDir, `resume-${Date.now()}-${input.fileName}`);
+        
+        // Decode base64 and write to temp file
+        const buffer = Buffer.from(input.fileData, "base64");
+        fs.writeFileSync(tempFilePath, buffer);
+
+        try {
+          // Extract text from file
+          const extractedText = await extractResumeText(tempFilePath, input.fileType);
+          
+          // Clean up temp file
+          fs.unlinkSync(tempFilePath);
+
+          if (!extractedText || extractedText.trim().length === 0) {
+            throw new Error("Could not extract text from file. Please ensure it's a valid resume.");
+          }
+
+          return {
+            success: true,
+            content: extractedText,
+          };
+        } catch (error) {
+          // Clean up temp file on error
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+          throw error;
+        }
+      } catch (error) {
+        throw new Error(`Failed to extract text: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    }),
+
   /**
    * Upload a resume file and extract its content
    */
