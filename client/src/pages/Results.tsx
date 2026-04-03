@@ -12,14 +12,14 @@ export default function Results() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [improvementId, setImprovementId] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Get improvement ID from URL params or session storage
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
+    const id = params.get("improvementId") || params.get("id");
     if (id) {
       setImprovementId(parseInt(id));
+      sessionStorage.setItem("improvementId", id);
     } else {
       const stored = sessionStorage.getItem("improvementId");
       if (stored) {
@@ -46,6 +46,7 @@ export default function Results() {
       <div className="min-h-screen bg-slate-50 py-8">
         <div className="container mx-auto px-4 max-w-2xl text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">No Improvement Found</h1>
+          <p className="text-slate-600 mb-6">Please upload a resume to get started.</p>
           <Button onClick={() => setLocation("/upload")}>Upload a Resume</Button>
         </div>
       </div>
@@ -98,81 +99,48 @@ function ResultsContent({ improvementId }: { improvementId: number }) {
     try {
       const result = await downloadMutation.mutateAsync({ improvementId });
       if (result.pdfUrl) {
-        const link = document.createElement("a");
-        link.href = result.pdfUrl;
-        link.download = result.fileName;
-        link.click();
-        toast.success("Resume downloaded!");
+        // Open PDF in new tab
+        window.open(result.pdfUrl, "_blank");
+        toast.success("PDF ready for download!");
       }
     } catch (err) {
-      toast.error("Failed to download resume");
+      toast.error("Failed to download PDF");
     }
   };
+
+  // Parse changes if they're stored as JSON
+  const changes = Array.isArray(improvement.changes) ? improvement.changes : [];
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-8">
-          <Button variant="ghost" onClick={() => setLocation("/")}>
-            ← Back to Home
+          <Button variant="ghost" onClick={() => setLocation("/upload")}>
+            ← Back to Upload
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600 capitalize">{improvement.status}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Changes Made</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-blue-600">{improvement.changes.length}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Created</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-slate-600">
-                {new Date(improvement.createdAt).toLocaleDateString()}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Resume Improvement Complete</h1>
+          <p className="text-slate-600">Your resume has been successfully improved based on your instructions.</p>
         </div>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Instructions Applied</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-700">{improvement.instructions}</p>
-          </CardContent>
-        </Card>
-
-        <Tabs defaultValue="comparison" className="mb-8">
+        <Tabs defaultValue="comparison" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
+            <TabsTrigger value="changes">Changes ({changes.length})</TabsTrigger>
             <TabsTrigger value="improved">Improved Resume</TabsTrigger>
-            <TabsTrigger value="changes">Changes Summary</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="comparison">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <TabsContent value="comparison" className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Original Resume</CardTitle>
+                  <CardDescription>Your original content</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-slate-100 p-4 rounded max-h-96 overflow-y-auto text-sm whitespace-pre-wrap">
+                  <div className="bg-slate-100 p-4 rounded text-sm text-slate-700 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono">
                     {improvement.originalContent}
                   </div>
                 </CardContent>
@@ -181,9 +149,10 @@ function ResultsContent({ improvementId }: { improvementId: number }) {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Improved Resume</CardTitle>
+                  <CardDescription>Enhanced version</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-slate-100 p-4 rounded max-h-96 overflow-y-auto text-sm whitespace-pre-wrap">
+                  <div className="bg-green-50 p-4 rounded text-sm text-slate-700 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono">
                     {improvement.improvedContent}
                   </div>
                 </CardContent>
@@ -191,85 +160,66 @@ function ResultsContent({ improvementId }: { improvementId: number }) {
             </div>
           </TabsContent>
 
+          <TabsContent value="changes" className="space-y-4">
+            {changes.length > 0 ? (
+              <div className="space-y-4">
+                {changes.map((change: any, idx: number) => (
+                  <Card key={idx}>
+                    <CardHeader>
+                      <CardTitle className="text-sm">{change.section}</CardTitle>
+                      <CardDescription>{change.reason}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-600 mb-1">Original:</p>
+                        <p className="text-sm text-slate-700 bg-slate-100 p-2 rounded">{change.original}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-600 mb-1">Improved:</p>
+                        <p className="text-sm text-slate-700 bg-green-100 p-2 rounded">{change.improved}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-slate-600">No specific changes were detected. The resume has been optimized for ATS.</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
           <TabsContent value="improved">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Improved Resume</CardTitle>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={handleCopyImproved}>
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                    <Button size="sm" onClick={handleDownload} disabled={downloadMutation.isPending}>
-                      {downloadMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Downloading...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          Download PDF
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle>Your Improved Resume</CardTitle>
+                <CardDescription>Ready to download and submit</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="bg-slate-100 p-6 rounded max-h-96 overflow-y-auto text-sm whitespace-pre-wrap font-mono">
+              <CardContent className="space-y-4">
+                <div className="bg-slate-100 p-6 rounded text-sm text-slate-700 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono">
                   {improvement.improvedContent}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="changes">
-            <Card>
-              <CardHeader>
-                <CardTitle>Changes Made ({improvement.changes.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {improvement.changes.length === 0 ? (
-                  <p className="text-slate-600">No changes recorded</p>
-                ) : (
-                  <div className="space-y-4">
-                    {improvement.changes.map((change: any, idx: number) => (
-                      <div key={idx} className="border-l-4 border-blue-400 pl-4 py-2">
-                        <p className="font-semibold text-slate-900">{change.section}</p>
-                        <p className="text-sm text-slate-600 mt-1">
-                          <span className="font-medium">Original:</span> {change.original}
-                        </p>
-                        <p className="text-sm text-slate-600">
-                          <span className="font-medium">Improved:</span> {change.improved}
-                        </p>
-                        <p className="text-sm text-green-600 mt-1">
-                          <span className="font-medium">Reason:</span> {change.reason}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="flex gap-4">
+                  <Button onClick={handleCopyImproved} className="flex items-center gap-2">
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copied!" : "Copy to Clipboard"}
+                  </Button>
+                  <Button onClick={handleDownload} disabled={downloadMutation.isPending} className="flex items-center gap-2">
+                    {downloadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    Download PDF
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        <div className="flex gap-4">
-          <Button onClick={() => setLocation("/upload")} variant="outline">
+        <div className="mt-8">
+          <Button onClick={() => setLocation("/upload")} variant="outline" className="w-full">
             Improve Another Resume
           </Button>
-          <Button onClick={() => setLocation("/history")}>View History</Button>
         </div>
       </div>
     </div>

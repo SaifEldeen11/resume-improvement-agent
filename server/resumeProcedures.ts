@@ -120,7 +120,7 @@ export const resumeRouter = router({
         }
 
         // Create improvement record with pending status
-        await createResumeImprovement({
+        const improvementResult = await createResumeImprovement({
           resumeId: input.resumeId,
           userId: ctx.user.id,
           instructions: input.instructions,
@@ -130,7 +130,11 @@ export const resumeRouter = router({
           status: "pending",
         });
 
-        const improvementId = 1;
+        // Get the inserted ID from the result
+        let improvementId = 1;
+        if (improvementResult && typeof improvementResult === 'object' && 'insertId' in improvementResult) {
+          improvementId = (improvementResult as any).insertId;
+        }
 
         try {
           // Improve the resume using LLM
